@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Slackey&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
+    <title>Monkifier! mk2</title>
+    <style>
+        body {
+            font-family: 'Slackey', cursive;
+            background-color: #544d80;
+            color: white;
+            text-shadow: 3px 3px black;
+            overflow: hidden;
+        }
+        h1 {
+            background-color: #322c54;
+            font-size: 60px;
+            margin: 0;
+            padding: 6px;
+            position: relative;
+            padding-left: 20px;
+            top: -8px;
+            left: -8px;
+            width: 100%;
+        }
+        p {
+            font-size: 35px;
+            margin: 15px;
+        }
+        button {
+            position: relative;
+            font-family: 'Slackey', cursive;
+            font-size: 18px;
+            padding: 8px;
+            padding-top: 3px;
+            padding-bottom: 3px;
+            top: -1px;
+            margin-left: 10px;
+        }
+        textarea {
+            width: 97%;
+            resize: none;
+            margin: 15px;
+            margin-top: 0px;
+            background-color: #3f386e;
+            color: white;
+            border: 1px solid white;
+            font-family: 'Roboto', sans-serif;
+        }
+        span {
+            margin: 15px;
+            font-size: 18px;
+        }
+        .x_span {
+            font-family: monospace;
+            position: relative;
+            margin: 0px;
+            top: -7px;
+            left: -2px;
+            font-size: 14px;
+        }
+        .working {
+            display: none;
+            position: absolute;
+            background-color: #2f285e;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            height: 86px;
+            margin: auto;
+            opacity: 80%;
+            border: 1px solid white;
+            font-size: 20px;
+            z-index: 10;
+        }
+        .password_div {
+            display: none;
+            position: absolute;
+            background-color: #2f285e;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            height: 100px;
+            margin: auto;
+            opacity: 80%;
+            border: 1px solid white;
+            font-size: 20px;
+            z-index: 10;
+        }
+        .password_close_style {
+            color: white;
+            outline: none;
+            border: 1px solid white;
+            background-color:  #2f285e;
+            position: absolute;
+            top: 6%;
+            left: 88%;
+            width: 22px;
+            height: 22px;
+        }
+        .stats_style {
+            display: none;
+            position: absolute;
+            background-color: #2f285e;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 700px;
+            height: 250px;
+            margin: auto;
+            opacity: 80%;
+            border: 1px solid white;
+            font-size: 20px;
+        }
+        .stats_close_style {
+            color: white;
+            outline: none;
+            border: 1px solid white;
+            background-color:  #2f285e;
+            position: absolute;
+            top: 3%;
+            left: 94.375%;
+            width: 22px;
+            height: 22px;
+        }
+        .stats_container {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            position: relative;
+            top: 5px;
+            height: 200px;
+        }
+        .stats_container > div {
+            font-family: monospace;
+            margin: 2px;
+            margin-left: 25px;
+        }
+    </style>
+    <script>
+      jQuery( function() {
+
+            // "global variable" set by password button and dialog
+            let gPassword = "password";
+
+            // number formatting helper functions
+            function formatBytes( number ) {
+                return number.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+            }
+
+            function formatHundreths( number, precision ) {
+                var temp = + number + ( precision === undefined ? 0.5 : precision / 2 );
+                temp -= ( temp % ( precision === undefined ? 1 : + precision ) );
+
+                // round to hundredths place
+                temp = Number( temp.toFixed(2) );
+
+                return temp;
+            }
+
+            // display memory bytes nicely formatted
+            function displayMemoryUsed( object, bytesUsed ) {
+                if( bytesUsed < 1024 )
+                    object.html( bytesUsed + " bytes" );
+                else if( bytesUsed < 1048576 )
+                    object.html( formatHundreths( (bytesUsed / 1024), 0.15) + " KB (" + formatBytes( bytesUsed ) + " bytes)" );
+                else if( bytesUsed < 1073741824 )
+                    object.html( formatHundreths( (bytesUsed / 1048576), 0.15) + " MB (" + formatBytes( bytesUsed ) + " bytes)" );
+            }
+
+            // update memory used for textareas after each keypress and keyup 
+            $("#source_text").keypress( function() {
+                displayMemoryUsed( $("#source_memory"), $( "#source_text").val().length );
+            });
+
+            $("#source_text").keyup( function() {
+                displayMemoryUsed( $("#source_memory"), $( "#source_text").val().length );
+            });
+
+            $("#dictionary_text").keypress( function() {
+                displayMemoryUsed( $("#dictionary_memory"), $( "#dictionary_text").val().length );
+            });
+
+            $("#dictionary_text").keyup( function() {
+                displayMemoryUsed( $("#dictionary_memory"), $( "#dictionary_text").val().length );
+            });
+
+            // build the Monkification dictionary
+            function buildDictionary() {
+
+                let dictionary = new Map();
+                let letters = "abcdefghijklmnopqrstuvwxyz";
+
+                for( let i = 0; i < letters.length; i++ )
+                    dictionary.set( letters.charAt( i ), new Array() );
+
+                let dictionary_text = new String( $("#dictionary_text").val() );
+                let new_definitions = new String();
+
+                // replace crlf and other characters with space to split after
+                for( let i = 0; i < dictionary_text.length; i++ ) {
+                    let c = dictionary_text[ i ];
+                    if( (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") )
+                        new_definitions += c;
+                    else
+                        new_definitions += " ";
+                }
+
+                new_definitions = new_definitions.split( " " );
+
+                let word = new String();
+                let words = new Array();
+                let c = new String();
+
+                for( let i = 0; i < new_definitions.length; i++ ) {
+                    word = new_definitions[ i ];
+                    c = word.charAt( 0 );
+                    
+                    if( ( word.length > 1 ) && ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z" )) ) {
+                        words = dictionary.get( c.toLowerCase() );
+                        if( words.indexOf( word.toLowerCase() ) == -1 ) {
+                            words.push( word.toLowerCase() );
+                            dictionary.set( c.toLowerCase(), words );
+                        }
+                    }
+                }
+                return dictionary;
+            }
+
+            // encode text
+            $("#monkify").click( function() {
+                $("#please_wait").slideDown( 200, function() {
+
+                    let source_words = new String( $("#source_text").val() );
+                    let new_text = new String();
+                    let c = new String();
+                    let new_word = new String();
+                    let new_words = new Array();
+
+                    // dictionary is another function for the sake of readability
+                    let new_dict = buildDictionary();
+
+                    // now iterate through the source text and do simple monification
+                    for( let i = 0; i < source_words.length; i++ ) {
+                        c = source_words.charAt( i );
+
+                        if( (c >= "a" && c <= "z") || (c >= "A" && c <= "Z" ) ) {
+                            new_words = new_dict.get( c.toLowerCase() );
+                            new_word = new_words[ Math.floor( Math.random() * new_words.length ) ]
+
+                            if( !new_word ) {
+                                new_word = c;
+                            }
+
+                            if( c >= "a" && c <= "z" )
+                                new_word = new_word.toLowerCase();
+                            else {
+                                c = new_word.charAt( 0 );
+                                new_word = c.toUpperCase() + new_word.substring( 1 );
+                            }
+                            new_text += new_word + " ";
+                        }
+                        else if( c != " " )
+                            new_text += c + " ";
+                        else
+                            new_text += c;
+                    }
+
+                    $("#source_text").val( new_text );
+
+                    displayMemoryUsed( $("#source_memory"), $( "#source_text").val().length );
+
+                    $("#please_wait").slideUp( 200 );
+                });
+            });
+
+            // decode text
+            $("#demonkify").click( function() {
+                $("#please_wait").slideDown( 200, function() { 
+                    let source_words = new String( $("#source_text").val() ).split( " " );
+                    let result_text = new String();
+
+                    for( let i = 0; i < source_words.length; i++ ) {
+                        if( source_words[ i ].length == 0 )
+                            result_text += " ";
+                        else
+                        {
+                            let word = source_words[ i ];
+
+                            var not_all_alpha = false;
+                            for( let j = 0; j < word.length; j++ ) {
+                                let c = word.charAt( j );
+                                not_all_alpha |= !( (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") );
+                            }
+
+                            if( not_all_alpha ) {
+                                for( let k = 0; k < word.length; k++ )
+                                    result_text += word.charAt( k );
+                            }
+                            else
+                                result_text += word.charAt( 0 );
+                        }
+                    }
+
+                    // remove leftover space from demonkification
+                    result_text = result_text.slice( 0, -1 );
+
+                    $("#source_text").val( result_text );
+
+                    displayMemoryUsed( $("#source_memory"), $( "#source_text").val().length );
+                    
+                    $("#please_wait").slideUp( 200 );
+                });
+            });
+
+            function transmogrify( text, operation ) {
+                // if text length is odd then it cannot be encrypted, if even then actually have to look at bytes
+                if( operation == "detect" && text.length % 2 == 1 )
+                    return "unencrypted";
+
+                // build prefix string to use to create double chars
+                let prefix_chars = new String();
+
+                for( let j = 126; j > 32; j-- ) {
+                    prefix_chars += String.fromCharCode( j );
+                }
+
+                // not enough prefix characters so generate 6 more from the end of ascii table and (start) again
+                for( j = 126; j > 120; j-- ) {
+                    prefix_chars += String.fromCharCode( j );
+                }
+
+                // filter out  /, :, [, and ] - line feed and space were never added
+                prefix_chars = prefix_chars.replace( "/", "" ); 
+                prefix_chars = prefix_chars.replace( ":", "" );
+                prefix_chars = prefix_chars.replace( "[", "" );
+                prefix_chars = prefix_chars.replace( "]", "" );
+
+                // create translation arrays
+                let chars_single = new Array(); // array to hold single character strings
+                let chars_double = new Array(); // array to hold double character strings
+
+                // add linefeed manually since it starts at code 10
+                chars_single.push( String.fromCharCode( 10 ) );
+                chars_double.push( "''" );
+
+                // determine all characters to represent key and value pairs from space to ~
+                for( i = 32, j = 126, k = 0; i < 127; i++, j--, k++ ) {
+                    chars_single.push( String.fromCharCode( i ) );
+                    let second_char = String.fromCharCode( j );
+                    if( second_char == " " || second_char == "/" || second_char == ":" || second_char == "[" || second_char == "]" )
+                        second_char = "!";
+                    chars_double.push( prefix_chars.charAt( k ) + second_char );
+                }
+
+                let to_double = false;
+                if( operation == "encrypt" ) {
+                    to_double = true;
+                }
+
+                // build the map
+                let transform = new Map();
+
+                for( i = 0; i < chars_double.length; i++ ) {
+                    if( to_double == true ) {
+                        transform.set( chars_single[ i ], chars_double[ i ] );
+                    } else {
+                        transform.set( chars_double[ i ], chars_single[ i ] );
+                    }
+                }
+
+                let new_text = "";
+
+                if( operation == "detect" ) {
+                    for( i = 0; i < text.length; i += 2 ) {
+                        if( transform.get( text.charAt( i ) +  text.charAt( i + 1 ) ) == undefined ) {
+                            new_text = "unencrypted";
+                            break;
+                        }
+                    }
+                } else {
+                    // transform the text
+                    for( i = 0; i < text.length; i++ ) {
+                        if( to_double == true ) {
+                            new_text += transform.get( text.charAt( i ) );
+                        } else {
+                            new_text += transform.get( text.charAt( i ) +  text.charAt( i + 1 ) );
+                            i++;
+                        }
+                    }
+                }
+
+                return new_text;
+            }
+
+            function crypto( encrypt ) {
+                $("#please_wait").show( 200, function() { 
+                    let source = $("#source_text").val();
+                    let output = new String();
+
+                    // don't decrypt if source text is not encrypted
+                    if( encrypt == false && transmogrify( source, "detect" ) == "unencrypted" ) {
+                        $("#please_wait").hide( 200 );
+                        return;
+                    }
+
+                    // perform transmogrification first if decrypting
+                    if( encrypt == false )
+                        source = transmogrify( source, "decrypt" );
+
+                    // prepare translation table
+                    let trans_table = new String();
+
+                    // first character in the translation table is line feed
+                    trans_table += String.fromCharCode( 10 ); 
+
+                    // fill translation table with ascii characters excluding extended ascii
+                    for( let i = 32, j = 0; i < 127; i++, j++ ) {
+                        trans_table += String.fromCharCode( i );
+                    }
+
+                    // pad it with itself so it can be indexed from 1/3rd the way in
+                    trans_table += trans_table + trans_table;
+
+                    // iterate through source text
+                    for( let i = 0, x = 0, y = 48; i < source.length; i++, x--, y++ ) {
+
+                        // get character to encrypt
+                        var charCode = source.charCodeAt( i );
+
+                        // convert character to space if outside of range for convertable character
+                        if( charCode != 10 ) // exclude linefeeds
+                            charCode = ((charCode > 126) || (charCode < 32)) ? 0x20 : charCode;
+
+                        // find matching character in translation table
+                        for( let j = 0; j < trans_table.length / 3; j++ ) {
+                            let transCode = trans_table.charCodeAt( trans_table.length / 3 + j );
+                            if( charCode == transCode ) {
+                                
+                                y %= gPassword.length;
+                                var crypt_val = Number( Math.round( trans_table.length / 3 * ( Math.sin( x ) + Math.sin( gPassword.charCodeAt( y ) ) ) / 2 ) );
+
+                                if( encrypt == true )
+                                    output += trans_table[ trans_table.length / 3 + j + crypt_val ];
+                                else
+                                    output += trans_table[ trans_table.length / 3 + j - crypt_val ];
+                                break;
+                            }
+                        }
+                    }
+
+                    // perform transmogrification last if encrypting
+                    if( encrypt == true )
+                        output = transmogrify( output, "encrypt" );
+
+                    $("#source_text").val( output );
+
+                    displayMemoryUsed( $("#source_memory"), $( "#source_text").val().length );
+
+                    $("#please_wait").hide( 200 );
+                });
+            }
+
+            $("#set_password").click( function() {
+                $(".password_div").show( 200 );
+                $("#crypto_password").focus();
+                $("#crypto_password").select();
+            });
+
+            $("#crypto_password").change( function() {
+                gPassword = $("#crypto_password").val();
+
+                $(".password_div").hide( 200 );
+            });
+
+            $("#password_close").click( function() {
+                $(".password_div").hide( 200 );
+            });
+
+            $("#encrypt").click( function() {
+                crypto( true );
+            });
+
+            $("#decrypt").click( function() {
+                crypto( false );
+            });
+
+            // copy what's in the source text to the clipboard
+            $("#copy").click( function() {
+                $("#source_text").select();
+                document.execCommand( "copy" );
+            });
+
+            // clear out the source text
+            $("#clear_source").click( function() {
+                $("#source_text").val( "" );
+
+                displayMemoryUsed( $("#source_memory"), $( "#source_text").val().length );
+            });
+
+            // add a default dictionary
+            $("#add").click( function() {
+
+                var dict = $("#default_dictionary").val();
+                var old  = $("#dictionary_text").val();
+
+                // if dictionary is empty don't append a space to start a new word
+                if( old.length > 0 )
+                    old += " ";
+
+                switch( dict ) {
+                    case "NATO":
+                        $("#dictionary_text").val( old + "Alpha Bravo Charlie Delta Echo Foxtrot Golf Hotel India Juliett Kilo Lima Mike November Oscar Papa Quebec Romeo Sierra Tango Uniform Victor Whiskey Xray Yankee Zulu");
+                    break;
+                    case "ICAO":
+                        $("#dictionary_text").val( old + "Able Baker Charlie Dog Easy Fox George How Item Jig King Love Mike Nickel Oboe Peter Queen Roger Sail Tare Uncle Victor William Xray Yoke Zebra" );
+                    break;
+                    case "UECU":
+                        $("#dictionary_text").val( old + "Argentine Brussels Canada Damascus Ecuador France Greece Hanover Italy Japan Khartoum Lima Madrid Nancy Ostend Paris Quebec Rivoli Santiago Tokio Uruguay Victoria Washington Xaintrie Yokohama Zanzibar" );
+                    break;
+                    case "CCIR":
+                        $("#dictionary_text").val( old + "Amsterdam Baltimore Casablanca Danemark Edison Florida Gallipoli Havan Italia Jerusalem Kilogramme Liverpool Madagascar Nevada Oslo Paris Quebec Roma Santiago Tripoli Upsala Valencia Washington Xanthippe Yokohama Zurich" );
+                    break;
+                    case "BAD":
+                        $("#dictionary_text").val( old + "Asshole Anus Bitch Buttfucker Cocksucker Cunt Dumbass Dick Egotistical Excrement Fucker Fatass Gross Goddamn Hideous Heinous Idiot Ignoramus Jerkass Jagoff Kooch Kunt Lamer Loser Motherfucker Motherfucking Nuttsack Nimrod Obscene Odorous Prick Pussy Quack Queef Rank Racist Shit Shithead Twit Testicle Ugly Unattractive Vagina Vile Wuss Wimp Xenophobe Xenophobic Yellow Yarak Zealot Zombie" );
+                    break;
+                }
+
+                displayMemoryUsed( $("#dictionary_memory"), $( "#dictionary_text").val().length );
+            });
+
+            // clear out the dictionary text
+            $("#clear_dictionary").click( function() {
+                $("#dictionary_text").val( "" );
+
+                displayMemoryUsed( $("#dictionary_memory"), $( "#dictionary_text").val().length );
+            });
+
+            // show the letter to word distribution div
+            $("#stats").click( function() {
+                $("#stats_window").slideDown( 200 );
+
+                let dictionary = buildDictionary();
+
+                let i = 0;
+
+                // todo: change this syntax to older syntax so can run on IE
+                for( let [k,v] of dictionary ) {
+                    i++;
+                    let query = ".stats_container div:nth-child(" + i + ")";
+                    var count = (v.length == 0) ? "Missing!" : v.length;
+                    $(query).html( k.toUpperCase() + ": " + count );
+                }
+            });
+
+            // button to close the stats window
+            $("#stats_close").click( function() {
+                $("#stats_window").slideUp( 200 );
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Monkifier! mk2</h1>
+    <div>
+        <p>Source Text -<button id="monkify">Monkify!</button><button id="demonkify">De-Monkify!</button><button id="set_password">Set Password</button><button id="encrypt">Encrypt</button><button id="decrypt">DeCrypt</button><button id="copy">Copy</button><button id="clear_source">Clear</button>
+        </p>
+        <textarea title="Enter text to monkify here" id="source_text" cols="200" rows="18"></textarea>
+        <span id="source_memory">0 bytes</span>
+    </div>
+    <div>
+        <p>Dictionary -
+            <select id="default_dictionary" style="font-family: 'Slackey', cursive; font-size: 22px; ">
+                <option value="NATO">NATO</option>
+                <option value="ICAO">IMO</option>
+                <option value="UECU">UECU</option>
+                <option value="CCIR">International Aviation</option>
+                <option value="BAD">Bad Words!</option>
+            </select><button id="add">Add</button><button id="clear_dictionary">Clear</button><button id="stats">Stats</button>
+        </p>
+        <textarea title="Enter dictionary words here" id="dictionary_text" cols="200" rows="18"></textarea><span id="dictionary_memory">0 bytes</span>
+    </div>
+    <div id="please_wait" class="working"><br><center>Please Wait...</center></div>
+    <div class="password_div"><center style="padding-top: 15px;">Enter Password:<br><input id="crypto_password" type="password"\></center><button id="password_close" class="password_close_style"><span class="x_span">X</span></button></div>
+    <div id="stats_window" class="stats_style"><center>Dictionary Entries For Letter</center><button id="stats_close" class="stats_close_style"><span class="x_span">X</span></button>
+        <div class="stats_container">
+            <div></div><div></div><div></div><div></div>
+            <div></div><div></div><div></div><div></div>
+            <div></div><div></div><div></div><div></div>
+            <div></div><div></div><div></div><div></div>
+            <div></div><div></div><div></div><div></div>
+            <div></div><div></div><div></div><div></div>
+            <div></div><div></div>
+        </div>
+    </div>
+</body>
+</html>
